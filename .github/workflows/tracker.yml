@@ -33,5 +33,5 @@ jobs:
         FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
         FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
       run: |
-        javac niftytracker.java
+        javac -encoding utf-8 niftytracker.java
         java niftytracker
