@@ -27,7 +27,10 @@ public class JForexLoginTest {
             }
             
             System.out.println("📁 Creating folder and initializing file on Google Drive...");
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData");
+            ProcessBuilder pb = new ProcessBuilder(
+                "cmd.exe", "/c", 
+                "rclone --config \"%USERPROFILE%\\.config\\rclone\\rclone.conf\" copy live_1s_data.csv gdrive:/NiftyData"
+            );
             Process p = pb.start();
             p.waitFor();
             System.out.println("✅ Instant initialization complete!");
@@ -68,8 +71,11 @@ public class JForexLoginTest {
             fw.write(dataToUpload);
             fw.close();
 
-            // 2. Synchronize the growing file directly into your Google Drive folder
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData");
+            // 2. Synchronize the growing file directly into your Google Drive folder with explicit config mapping
+            ProcessBuilder pb = new ProcessBuilder(
+                "cmd.exe", "/c", 
+                "rclone --config \"%USERPROFILE%\\.config\\rclone\\rclone.conf\" copy live_1s_data.csv gdrive:/NiftyData"
+            );
             Process p = pb.start();
             p.waitFor(); // Wait briefly for transmission to finish safely
             
