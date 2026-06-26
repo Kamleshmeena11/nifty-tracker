@@ -1,6 +1,7 @@
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
@@ -15,6 +16,25 @@ public class JForexLoginTest {
     public static void main(String[] args) {
         System.out.println("🚀 Initializing Market Tracker Engine...");
         
+        // INSTANT INITIALIZATION: Create the file and folder on Drive immediately
+        try {
+            File file = new File("live_1s_data.csv");
+            // Only write headers if the file doesn't exist yet
+            if (!file.exists()) {
+                FileWriter fw = new FileWriter(file, false);
+                fw.write("Timestamp,Open,High,Low,Close,Volume\n");
+                fw.close();
+            }
+            
+            System.out.println("📁 Creating folder and initializing file on Google Drive...");
+            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData");
+            Process p = pb.start();
+            p.waitFor();
+            System.out.println("✅ Instant initialization complete!");
+        } catch (Exception e) {
+            System.out.println("⚠️ Initialization sync failed: " + e.getMessage());
+        }
+
         // 1. Start a parallel background timer that runs every 15 seconds
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
@@ -49,7 +69,7 @@ public class JForexLoginTest {
             fw.close();
 
             // 2. Synchronize the growing file directly into your Google Drive folder
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData/");
+            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData");
             Process p = pb.start();
             p.waitFor(); // Wait briefly for transmission to finish safely
             
