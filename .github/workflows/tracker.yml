@@ -35,4 +35,3 @@ jobs:
       run: |
         javac -encoding utf-8 JForexLoginTest.java
         java JForexLoginTest
-        rclone copy . gdrive:nifty_tracked_data
