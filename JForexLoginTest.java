@@ -34,26 +34,26 @@ public class JForexLoginTest {
         csvBuffer.append(row);
     }
 
-    // This method dumps data out of the RAM and streams it directly into Google Drive
+    // This method saves data locally and pushes a cumulative copy to Google Drive
     private static synchronized void flushBufferToGDrive() {
         if (csvBuffer.length() == 0) return;
 
         try {
-            // Copy the data and instantly clear the main buffer to prevent duplicates
+            // Take data out of RAM and clear the buffer immediately for incoming ticks
             String dataToUpload = csvBuffer.toString();
             csvBuffer.setLength(0); 
 
-            // Save text to a temporary cloud file
-            FileWriter fw = new FileWriter("temp_batch.csv", false);
+            // 1. APPEND the new 15-second batch to your running local file
+            FileWriter fw = new FileWriter("live_1s_data.csv", true); // 'true' enables appending
             fw.write(dataToUpload);
             fw.close();
 
-            // Run rclone via Windows cmd to append data straight to your Google Drive file
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone rcat gdrive:/NiftyData/live_1s_data.csv < temp_batch.csv");
+            // 2. Synchronize the growing file directly into your Google Drive folder
+            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "rclone copy live_1s_data.csv gdrive:/NiftyData/");
             Process p = pb.start();
-            p.waitFor(); // Wait briefly for the internet transmission to finish
+            p.waitFor(); // Wait briefly for transmission to finish safely
             
-            System.out.println("☁️ Synchronized 15-second batch to Google Drive.");
+            System.out.println("☁️ Synchronized updated dataset to Google Drive.");
         } catch (Exception e) {
             System.out.println("⚠️ Google Drive sync error: " + e.getMessage());
         }
