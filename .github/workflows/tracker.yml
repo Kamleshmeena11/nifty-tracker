@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-tracker:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Fetch Code
@@ -19,26 +19,19 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-
-    - name: Install Dependencies
+    - name: Install Python and Fyers SDK
       run: |
-        python -m pip install --upgrade pip
-        pip install fyers-apiv3
+        python3 -m pip install --upgrade pip
+        python3 -m pip install fyers-apiv3
 
     - name: Install rclone
-      run: choco install rclone -y
+      run: curl https://rclone.org/install.sh | sudo bash
 
     - name: Link Google Drive
       run: |
-        @'
-        ${{ secrets.RCLONE_CONFIG_DATA }}
-        '@ | Set-Content -Path "rclone.conf"
+        echo "${{ secrets.RCLONE_CONFIG_DATA }}" > rclone.conf
 
-    - name: Run Tracker Engine and Sync
+    - name: Compile and Run Tracker Engine
       env:
         FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
         FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
@@ -46,11 +39,18 @@ jobs:
         # 1. Compile Java
         javac -encoding utf-8 JForexLoginTest.java
         
-        # 2. Run Java and Wait for completion
-        Start-Process java -ArgumentList "JForexLoginTest" -Wait
+        # 2. Run both processes in the background and capture their PIDs
+        java JForexLoginTest &
+        JAVA_PID=$!
         
-        # 3. Run Python and Wait for completion
-        Start-Process python -ArgumentList "tracker.py" -Wait
+        python3 tracker.py &
+        PYTHON_PID=$!
         
-        # 4. Sync to Google Drive only after scripts finish
+        # 3. Explicitly wait for both processes to finish
+        # This prevents the runner from killing them early
+        wait $JAVA_PID
+        wait $PYTHON_PID
+        
+        # 4. Sync files to Google Drive
+        # This only runs AFTER wait confirms the scripts have completed
         rclone copy . gdrive: --config rclone.conf
