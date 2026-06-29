@@ -32,6 +32,7 @@ jobs:
       - name: Install rclone
         run: |
           curl https://rclone.org/install.sh | sudo bash
+          rclone version
 
       - name: Create rclone config
         run: |
@@ -39,22 +40,41 @@ jobs:
 
           printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
 
-          echo "========== CONFIG =========="
+          echo "=============================="
+          echo "Contents of rclone.conf"
+          echo "=============================="
           cat ~/.config/rclone/rclone.conf
-          echo "============================"
 
-          if grep -q "\[gdrive\]" ~/.config/rclone/rclone.conf; then
-            echo "✅ gdrive section found."
-          else
-            echo "❌ gdrive section missing!"
-            exit 1
-          fi
+          echo ""
+          echo "=============================="
+          echo "rclone config file"
+          echo "=============================="
+          rclone config file
+
+          echo ""
+          echo "=============================="
+          echo "Hex dump (first 128 bytes)"
+          echo "=============================="
+          xxd ~/.config/rclone/rclone.conf | head
+
+          echo ""
+          echo "=============================="
+          echo "Testing config"
+          echo "=============================="
+          rclone listremotes --config ~/.config/rclone/rclone.conf -vv
+
+      - name: Test Google Drive Access
+        run: |
+          echo "Testing Google Drive..."
+          rclone lsd gdrive: \
+            --config ~/.config/rclone/rclone.conf \
+            -vv
 
       - name: Compile Java
         run: |
           javac -encoding UTF-8 JForexLoginTest.java
 
-      - name: Run Java and Python
+      - name: Run Java & Python
         env:
           FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
           FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
@@ -72,7 +92,4 @@ jobs:
         run: |
           rclone copy live_1s_data.csv gdrive:NiftyData \
             --config ~/.config/rclone/rclone.conf \
-            -v
-
-      - name: Done
-        run: echo "✅ Workflow completed successfully."
+            -vv
