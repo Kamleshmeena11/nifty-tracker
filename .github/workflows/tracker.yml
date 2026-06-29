@@ -29,27 +29,32 @@ jobs:
 
     - name: Create rclone config
       run: |
-        # Create directory
         mkdir -p ~/.config/rclone
-        # Create file
-        printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
-        # DEBUG: Check if file has content
-        echo "File size and contents:"
-        ls -lh ~/.config/rclone/rclone.conf
-        head -n 5 ~/.config/rclone/rclone.conf
+        # Create config file with the necessary [gdrive] header and your token
+        printf "%s\n%s" "[gdrive]" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
+        
+        # Verify the section exists to prevent rclone errors
+        if ! grep -q "\[gdrive\]" ~/.config/rclone/rclone.conf; then
+          echo "ERROR: Missing [gdrive] section in config file!"
+          exit 1
+        fi
+        echo "Config verified."
 
     - name: Compile and Run Tracker
       env:
         FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
         FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
       run: |
+        # 1. Compile Java
         javac -encoding utf-8 JForexLoginTest.java
         
+        # 2. Run processes in background and capture PIDs
         java JForexLoginTest &
         JAVA_PID=$!
         python3 tracker.py &
         PYTHON_PID=$!
         
+        # 3. Wait for processes to finish
         wait $JAVA_PID
         wait $PYTHON_PID
         echo "Data generation complete."
@@ -57,4 +62,4 @@ jobs:
     - name: Upload Files to Google Drive
       run: |
         # Use the exact absolute path to the config file
-        rclone copy . gdrive:NiftyData --config /home/runner/.config/rclone/rclone.conf --verbose
+        rclone copy . gdrive:NiftyData --config ~/.config/rclone/rclone.conf --verbose
