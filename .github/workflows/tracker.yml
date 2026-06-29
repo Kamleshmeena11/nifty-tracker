@@ -10,86 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Fetch Code
+      uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Install Python and Fyers SDK
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install fyers-apiv3
 
-      - name: Install Python Packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install fyers-apiv3
+    - name: Install rclone
+      run: curl https://rclone.org/install.sh | sudo bash
 
-      - name: Install rclone
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
-          rclone version
+    - name: Link Google Drive
+      run: |
+        echo "${{ secrets.RCLONE_CONFIG_DATA }}" > rclone.conf
 
-      - name: Create rclone config
-        run: |
-          mkdir -p ~/.config/rclone
-
-          printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
-
-          echo "=============================="
-          echo "Contents of rclone.conf"
-          echo "=============================="
-          cat ~/.config/rclone/rclone.conf
-
-          echo ""
-          echo "=============================="
-          echo "rclone config file"
-          echo "=============================="
-          rclone config file
-
-          echo ""
-          echo "=============================="
-          echo "Hex dump (first 128 bytes)"
-          echo "=============================="
-          xxd ~/.config/rclone/rclone.conf | head
-
-          echo ""
-          echo "=============================="
-          echo "Testing config"
-          echo "=============================="
-          rclone listremotes --config ~/.config/rclone/rclone.conf -vv
-
-      - name: Test Google Drive Access
-        run: |
-          echo "Testing Google Drive..."
-          rclone lsd gdrive: \
-            --config ~/.config/rclone/rclone.conf \
-            -vv
-
-      - name: Compile Java
-        run: |
-          javac -encoding UTF-8 JForexLoginTest.java
-
-      - name: Run Java & Python
-        env:
-          FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
-          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
-        run: |
-          java JForexLoginTest &
-          JAVA_PID=$!
-
-          python tracker.py &
-          PYTHON_PID=$!
-
-          wait $JAVA_PID
-          wait $PYTHON_PID
-
-      - name: Final Upload
-        run: |
-          rclone copy live_1s_data.csv gdrive:NiftyData \
-            --config ~/.config/rclone/rclone.conf \
-            -vv
+    - name: Compile and Run Tracker Engine
+      env:
+        FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
+        FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+      run: |
+        # Compile Java
+        javac -encoding utf-8 JForexLoginTest.java
+        
+        # Run both in background
+        java JForexLoginTest &
+        python3 tracker.py &
+        
+        # Wait for both processes to complete
+        wait
