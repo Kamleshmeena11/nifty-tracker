@@ -41,4 +41,7 @@ jobs:
         
         # Run both in background
         java JForexLoginTest &
-        python3 tracker.py
+        python3 tracker.py &
+        
+        # Wait for both processes to complete
+        wait
