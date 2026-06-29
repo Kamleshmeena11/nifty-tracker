@@ -29,10 +29,12 @@ jobs:
 
     - name: Create rclone config
       run: |
+        # Ensure the directory exists
         mkdir -p ~/.config/rclone
-        # Use printf to avoid issues with newlines/special characters in the secret
+        # Create config file using printf to ensure format integrity
+        # The 'tr -d \r' removes hidden Windows characters that break configs
         printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
-        echo "===== Config Created Successfully ====="
+        echo "Config file created at: ~/.config/rclone/rclone.conf"
 
     - name: Compile and Run Tracker
       env:
@@ -42,18 +44,18 @@ jobs:
         # 1. Compile Java
         javac -encoding utf-8 JForexLoginTest.java
         
-        # 2. Run both processes in background
+        # 2. Run processes in background and track PIDs
         java JForexLoginTest &
         JAVA_PID=$!
         python3 tracker.py &
         PYTHON_PID=$!
         
-        # 3. Wait for processes to finish to ensure files are fully written
+        # 3. Wait for processes to finish
         wait $JAVA_PID
         wait $PYTHON_PID
         echo "Data generation complete."
 
     - name: Upload Files to Google Drive
       run: |
-        # Use the explicit path for the config file and copy the current directory
+        # Explicitly point to the config file path we created
         rclone copy . gdrive:NiftyData --config ~/.config/rclone/rclone.conf --progress
