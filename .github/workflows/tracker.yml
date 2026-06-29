@@ -25,8 +25,8 @@ jobs:
 
     - name: Link Google Drive
       run: |
-        New-Item -ItemType Directory -Force -Path "$HOME\.config\rclone"
-        Set-Content -Path "$HOME\.config\rclone\rclone.conf" -Value "${{ secrets.RCLONE_CONFIG_DATA }}"
+        # Creates the configuration file directly in the workspace folder so Java can find it instantly
+        Set-Content -Path "rclone.conf" -Value "${{ secrets.RCLONE_CONFIG_DATA }}"
 
     - name: Compile and Run Java Tracker
       env:
