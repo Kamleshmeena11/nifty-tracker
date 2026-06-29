@@ -10,45 +10,69 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-    - name: Install Python & Fyers SDK
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install fyers-apiv3
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install rclone
-      run: curl https://rclone.org/install.sh | sudo bash
+      - name: Install Python Packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install fyers-apiv3
 
-    - name: Create rclone config
-      run: |
-        mkdir -p /home/runner/.config/rclone
-        # Create config file explicitly with the header and your secret
-        printf "[gdrive]\n%s" "${{ secrets.RCLONE_CONFIG_DATA }}" > /home/runner/.config/rclone/rclone.conf
-        echo "Config created at /home/runner/.config/rclone/rclone.conf"
-        cat /home/runner/.config/rclone/rclone.conf
+      - name: Install rclone
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
 
-    - name: Compile and Run Tracker
-      env:
-        FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
-        FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
-      run: |
-        javac -encoding utf-8 JForexLoginTest.java
-        java JForexLoginTest &
-        JAVA_PID=$!
-        python3 tracker.py &
-        PYTHON_PID=$!
-        wait $JAVA_PID
-        wait $PYTHON_PID
+      - name: Create rclone config
+        run: |
+          mkdir -p ~/.config/rclone
 
-    - name: Upload Files to Google Drive
-      run: |
-        # Use the exact absolute path to the config file
-        rclone copy . gdrive:NiftyData --config /home/runner/.config/rclone/rclone.conf --verbose
+          printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
+
+          echo "========== CONFIG =========="
+          cat ~/.config/rclone/rclone.conf
+          echo "============================"
+
+          if grep -q "\[gdrive\]" ~/.config/rclone/rclone.conf; then
+            echo "✅ gdrive section found."
+          else
+            echo "❌ gdrive section missing!"
+            exit 1
+          fi
+
+      - name: Compile Java
+        run: |
+          javac -encoding UTF-8 JForexLoginTest.java
+
+      - name: Run Java and Python
+        env:
+          FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          java JForexLoginTest &
+          JAVA_PID=$!
+
+          python tracker.py &
+          PYTHON_PID=$!
+
+          wait $JAVA_PID
+          wait $PYTHON_PID
+
+      - name: Final Upload
+        run: |
+          rclone copy live_1s_data.csv gdrive:NiftyData \
+            --config ~/.config/rclone/rclone.conf \
+            -v
+
+      - name: Done
+        run: echo "✅ Workflow completed successfully."
