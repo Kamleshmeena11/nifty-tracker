@@ -14,11 +14,10 @@ public class JForexLoginTest {
     public static void main(String[] args) {
         System.out.println("🚀 Initializing Market Tracker Engine...");
         
-        // Find the absolute system path for the current user folder dynamically
-        String userProfile = System.getenv("USERPROFILE");
-        String configPath = userProfile + "\\.config\\rclone\\rclone.conf";
+        // Use a foolproof path right inside the workspace directory
+        String configPath = "rclone.conf";
         
-        // INSTANT INITIALIZATION
+        // INSTANT INITIALIZATION: Create the local file layout and attempt first upload
         try {
             File file = new File("live_1s_data.csv");
             if (!file.exists()) {
@@ -30,7 +29,7 @@ public class JForexLoginTest {
             System.out.println("📁 Syncing initial file layout to Google Drive...");
             ProcessBuilder pb = new ProcessBuilder(
                 "cmd.exe", "/c", 
-                "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:/NiftyData"
+                "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:NiftyData"
             );
             Process p = pb.start();
             p.waitFor();
@@ -39,14 +38,14 @@ public class JForexLoginTest {
             System.out.println("⚠️ Initialization sync failed: " + e.getMessage());
         }
 
-        // 1. 15-Second Background Timer
+        // 1. 15-Second Background Timer Loop
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             flushBufferToGDrive(configPath);
         }, 15, 15, TimeUnit.SECONDS);
 
-        // 2. Your WebSocket Logic remains below...
-        System.out.println("🔌 WebSocket streaming active. Recording ticks...");
+        // 2. Your WebSocket live streaming connection details remain here
+        System.out.println("🔌 WebSocket streaming active. Recording ticks... (Market Open)");
     }
 
     public static synchronized void appendBarToBuffer(String time, double o, double h, double l, double c, int v) {
@@ -67,7 +66,7 @@ public class JForexLoginTest {
 
             ProcessBuilder pb = new ProcessBuilder(
                 "cmd.exe", "/c", 
-                "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:/NiftyData"
+                "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:NiftyData"
             );
             Process p = pb.start();
             p.waitFor(); 
