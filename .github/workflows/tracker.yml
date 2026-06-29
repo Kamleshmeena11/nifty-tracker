@@ -29,10 +29,14 @@ jobs:
 
     - name: Create rclone config
       run: |
+        # Create directory
         mkdir -p ~/.config/rclone
+        # Create file
         printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
-        echo "Verifying config content:"
-        cat ~/.config/rclone/rclone.conf
+        # DEBUG: Check if file has content
+        echo "File size and contents:"
+        ls -lh ~/.config/rclone/rclone.conf
+        head -n 5 ~/.config/rclone/rclone.conf
 
     - name: Compile and Run Tracker
       env:
@@ -52,5 +56,5 @@ jobs:
 
     - name: Upload Files to Google Drive
       run: |
-        # Explicitly use the config file we generated in the Create step
-        rclone copy . gdrive:NiftyData --config ~/.config/rclone/rclone.conf --verbose
+        # Use the exact absolute path to the config file
+        rclone copy . gdrive:NiftyData --config /home/runner/.config/rclone/rclone.conf --verbose
