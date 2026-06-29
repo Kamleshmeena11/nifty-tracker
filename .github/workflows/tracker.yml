@@ -19,17 +19,24 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Install Python and Fyers SDK
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Dependencies
       run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install fyers-apiv3
+        python -m pip install --upgrade pip
+        pip install fyers-apiv3
 
     - name: Install rclone
-      run: curl https://rclone.org/install.sh | sudo bash
+      run: choco install rclone -y
 
     - name: Link Google Drive
       run: |
-        echo "${{ secrets.RCLONE_CONFIG_DATA }}" > rclone.conf
+        @'
+        ${{ secrets.RCLONE_CONFIG_DATA }}
+        '@ | Set-Content -Path "rclone.conf"
 
     - name: Compile and Run Tracker Engine
       env:
@@ -39,9 +46,11 @@ jobs:
         # Compile Java
         javac -encoding utf-8 JForexLoginTest.java
         
-        # Run both in background
-        java JForexLoginTest &
-        python3 tracker.py &
+        # Start Java and Python processes and wait for both to exit
+        $javaProc = Start-Process java -ArgumentList "JForexLoginTest" -PassThru
+        $pyProc = Start-Process python -ArgumentList "tracker.py" -PassThru
         
-        # Wait for both processes to complete
-        wait
+        Wait-Process -InputObject $javaProc, $pyProc
+        
+        # Sync to Google Drive (using the rclone config file)
+        rclone copy . gdrive: --config rclone.conf
