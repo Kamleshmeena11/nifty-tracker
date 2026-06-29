@@ -10,47 +10,56 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Fetch Code
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-    - name: Install Python and Fyers SDK
-      run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install fyers-apiv3
+      - name: Install Python & Fyers SDK
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install fyers-apiv3
 
-    - name: Install rclone
-      run: curl https://rclone.org/install.sh | sudo bash
+      - name: Install rclone
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
 
-    - name: Link Google Drive
-      run: |
-        echo "${{ secrets.RCLONE_CONFIG_DATA }}" > rclone.conf
+      - name: Create rclone config
+        run: |
+          mkdir -p ~/.config/rclone
+          printf "%s" "${{ secrets.RCLONE_CONFIG_DATA }}" | tr -d '\r' > ~/.config/rclone/rclone.conf
 
-    - name: Compile and Run Tracker Engine
-      env:
-        FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
-        FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
-      run: |
-        # 1. Compile Java
-        javac -encoding utf-8 JForexLoginTest.java
-        
-        # 2. Run both processes in the background and capture their PIDs
-        java JForexLoginTest &
-        JAVA_PID=$!
-        
-        python3 tracker.py &
-        PYTHON_PID=$!
-        
-        # 3. Explicitly wait for both processes to finish
-        # This prevents the runner from killing them early
-        wait $JAVA_PID
-        wait $PYTHON_PID
-        
-        # 4. Sync files to Google Drive
-        # This only runs AFTER wait confirms the scripts have completed
-        rclone copy . gdrive: --config rclone.conf
+          echo "===== Config Created ====="
+          grep "^\[gdrive\]" ~/.config/rclone/rclone.conf
+          grep "^type" ~/.config/rclone/rclone.conf
+          echo "=========================="
+
+      - name: Test Google Drive Connection
+        run: |
+          rclone lsd gdrive: --config ~/.config/rclone/rclone.conf
+
+      - name: Compile and Run Tracker
+        env:
+          FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
+          FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+        run: |
+          javac -encoding utf-8 JForexLoginTest.java
+
+          java JForexLoginTest &
+          JAVA_PID=$!
+
+          python3 tracker.py &
+          PYTHON_PID=$!
+
+          wait $JAVA_PID
+          wait $PYTHON_PID
+
+      - name: Upload Files to Google Drive
+        run: |
+          rclone copy . gdrive:NiftyData \
+            --config ~/.config/rclone/rclone.conf \
+            --progress
