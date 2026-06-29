@@ -1,9 +1,10 @@
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class JForexLoginTest {
     private static final StringBuilder csvBuffer = new StringBuilder();
@@ -14,10 +15,9 @@ public class JForexLoginTest {
     public static void main(String[] args) {
         System.out.println("🚀 Initializing Market Tracker Engine...");
         
-        // Use a foolproof path right inside the workspace directory
         String configPath = "rclone.conf";
         
-        // INSTANT INITIALIZATION: Create the local file layout and attempt first upload
+        // INSTANT INITIALIZATION
         try {
             File file = new File("live_1s_data.csv");
             if (!file.exists()) {
@@ -27,25 +27,35 @@ public class JForexLoginTest {
             }
             
             System.out.println("📁 Syncing initial file layout to Google Drive...");
+            
+            // Added redirectErrorStream(true) to capture rclone output directly in GitHub Logs
             ProcessBuilder pb = new ProcessBuilder(
                 "cmd.exe", "/c", 
                 "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:NiftyData"
             );
+            pb.redirectErrorStream(true);
             Process p = pb.start();
+            
+            // Print the live console responses from rclone
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("[rclone-log] " + line);
+            }
+            
             p.waitFor();
-            System.out.println("✅ Instant initialization complete!");
+            System.out.println("✅ Instant initialization run complete!");
         } catch (Exception e) {
             System.out.println("⚠️ Initialization sync failed: " + e.getMessage());
         }
 
-        // 1. 15-Second Background Timer Loop
+        // 1. 15-Second Background Timer
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             flushBufferToGDrive(configPath);
         }, 15, 15, TimeUnit.SECONDS);
 
-        // 2. Your WebSocket live streaming connection details remain here
-        System.out.println("🔌 WebSocket streaming active. Recording ticks... (Market Open)");
+        System.out.println("🔌 WebSocket streaming active. Recording ticks...");
     }
 
     public static synchronized void appendBarToBuffer(String time, double o, double h, double l, double c, int v) {
@@ -68,7 +78,14 @@ public class JForexLoginTest {
                 "cmd.exe", "/c", 
                 "rclone --config \"" + configPath + "\" copy live_1s_data.csv gdrive:NiftyData"
             );
+            pb.redirectErrorStream(true);
             Process p = pb.start();
+            
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println("[rclone-loop-log] " + line);
+            }
             p.waitFor(); 
             
             System.out.println("☁️ Synchronized updated dataset to Google Drive.");
