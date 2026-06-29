@@ -46,6 +46,9 @@ jobs:
         # Compile Java
         javac -encoding utf-8 JForexLoginTest.java
         
-        # Run Java and Python in background
-        Start-Process java -ArgumentList "JForexLoginTest"
-        Start-Process python -ArgumentList "tracker.py"
+        # Start processes and wait for them to finish
+        # Using & (background) followed by Wait-Process ensures the job stays alive
+        $javaProc = Start-Process java -ArgumentList "JForexLoginTest" -PassThru
+        $pyProc = Start-Process python -ArgumentList "tracker.py" -PassThru
+        
+        Wait-Process -InputObject $javaProc, $pyProc
