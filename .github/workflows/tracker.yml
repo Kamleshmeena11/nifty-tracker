@@ -22,9 +22,9 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.11'
 
-    - name: Install Dependencies
+    - name: Install Python Packages
       run: |
         python -m pip install --upgrade pip
         pip install fyers-apiv3
@@ -38,18 +38,16 @@ jobs:
         ${{ secrets.RCLONE_CONFIG_DATA }}
         '@ | Set-Content -Path "rclone.conf"
 
-    - name: Run Tracker Engine and Sync
+    - name: Compile and Run Tracker
       env:
         FYERS_APP_ID: ${{ secrets.FYERS_APP_ID }}
         FYERS_ACCESS_TOKEN: ${{ secrets.FYERS_ACCESS_TOKEN }}
+      shell: powershell
       run: |
-        # 1. Compile and Run Java
         javac -encoding utf-8 JForexLoginTest.java
-        Start-Process java -ArgumentList "JForexLoginTest" -Wait
-        
-        # 2. Run Python (only after Java completes)
-        python tracker.py
-        
-        # 3. Sync to Google Drive (using the local rclone.conf)
-        # Replace 'gdrive' with your actual remote name if different
-        .\rclone.exe copy . gdrive: --config rclone.conf
+
+        $java = Start-Process java -ArgumentList "JForexLoginTest" -PassThru
+        $python = Start-Process python -ArgumentList "tracker.py" -PassThru
+
+        Wait-Process -Id $java.Id
+        Wait-Process -Id $python.Id
